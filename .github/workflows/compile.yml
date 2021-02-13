@@ -1,0 +1,40 @@
+name: Build Plugin
+
+on: [push, pull_request]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-18.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download, compile and install capstone
+        run: |
+          git clone https://github.com/aquynh/capstone
+          pushd capstone
+          ./make.sh
+          sudo ./make.sh install
+          popd
+
+      - name: Download, compile and install Binary Ninja API
+        run: |
+          git clone https://github.com/Vector35/binaryninja-api /tmp/bn-api
+          pushd /tmp/bn-api
+
+
+
+      - name: Remove binary Ninja dependency in disassembler.cpp
+        run: |
+          sed -i '/binaryninjaapi.h/d' disassembler.cpp
+      
+      - name: Compile test code
+        run: |
+          g++ -std=c++11 -O0 -g test_asm.cpp assembler.cpp -o test_asm -lcapstone
+          g++ -std=c++11 -O0 -g test_disasm.cpp disassembler.cpp -o test_disasm -lcapstone
+
+      - name: Compile module
+        run: |
+          BN_API_PATH=/tmp/bn-api cmake .
+          make
+        env: 
+          BN_API_PATH: /tmp/bn-api
